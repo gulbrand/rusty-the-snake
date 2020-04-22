@@ -4,6 +4,7 @@ use std::time::{SystemTime, Duration};
 use sdl2::render::WindowCanvas;
 use sdl2::rect::Rect;
 use sdl2::keyboard::Keycode;
+use std::borrow::Borrow;
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 struct Position {
@@ -11,7 +12,7 @@ struct Position {
     y: i32,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 enum Direction {
     UP,
     DOWN,
@@ -24,7 +25,8 @@ struct Game {
     snake_position: Vec<Position>,
     snake_direction: Direction,
     board_width: u32,
-    board_height: u32
+    board_height: u32,
+    turn_command: Option<Direction>,
 }
 
 impl Game {
@@ -40,11 +42,31 @@ impl Game {
             snake_direction: Direction::RIGHT,
             board_width: width,
             board_height: height,
+            turn_command: None
+        }
+    }
+
+    fn _get_allowable_turn_vec(self: &Self) -> Vec<Direction> {
+        match self.snake_direction {
+            Direction::RIGHT => vec![Direction::UP, Direction::DOWN],
+            Direction::LEFT => vec![Direction::UP, Direction::DOWN],
+            Direction::UP => vec![Direction::RIGHT, Direction::LEFT],
+            Direction::DOWN => vec![Direction::RIGHT, Direction::LEFT]
+        }
+    }
+
+    fn _apply_turn_command(self: &mut Self) {
+        if self.turn_command.is_some() {
+            println!("applying the turn command");
+            self.snake_direction = self.turn_command.unwrap();
         }
     }
 
     pub fn turn(self: &mut Self, direction: Direction) {
-        self.snake_direction = direction;
+        let allowable_turns = self._get_allowable_turn_vec();
+        if allowable_turns.contains(&direction) {
+            self.turn_command = Some(direction);
+        }
     }
 
     pub fn snake_head(self: &Self) -> Option<Position> {
@@ -72,6 +94,7 @@ impl Game {
         if self.snake_position.len() < 1 {
             return;
         }
+        self._apply_turn_command();
         let direction = &self.snake_direction;
         match direction {
             Direction::RIGHT => {
@@ -110,9 +133,7 @@ pub mod tests {
         let y = height as i32 / 2;
         let initial_position = Position { x: x + 2, y };
         let mut game = Game::new(width, height);
-        game.turn(Direction::UP);
         assert_eq!(game.snake_position.len(), 3);
-        assert_eq!(game.snake_direction, Direction::UP);
         assert_eq!(game.snake_head(), Some(initial_position));
         game.turn(Direction::RIGHT);
         game.tick();
@@ -120,7 +141,20 @@ pub mod tests {
             x: initial_position.x + 1,
             y: initial_position.y,
         };
-        assert_eq!(game.snake_head(), Some(updated_position))
+        assert_eq!(game.snake_head(), Some(updated_position));
+
+        // turn mechanics
+        assert_eq!(game.snake_direction, Direction::RIGHT);
+        game.turn(Direction::LEFT);
+        assert_eq!(game.snake_direction, Direction::RIGHT);
+        game.tick();
+        assert_eq!(game.snake_direction, Direction::RIGHT);
+
+        game.turn(Direction::UP);
+        assert_eq!(game.snake_direction, Direction::RIGHT);
+        game.tick();
+        assert_eq!(game.snake_direction, Direction::UP);
+
     }
 }
 
