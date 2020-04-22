@@ -37,6 +37,8 @@ impl Game {
         snake_positions.push(Position { x, y });
         snake_positions.push(Position { x: x + 1, y: y } );
         snake_positions.push(Position { x: x + 2, y: y } );
+        snake_positions.push(Position { x: x + 3, y: y } );
+        snake_positions.push(Position { x: x + 4, y: y } );
         Game {
             snake_position: snake_positions,
             snake_direction: Direction::RIGHT,
@@ -120,6 +122,24 @@ impl Game {
         }
     }
 
+    pub fn is_game_over(self: &Self) -> bool {
+        let snake_head_pos = self.snake_head().unwrap();
+        let snake_x = snake_head_pos.x;
+        let snake_y = snake_head_pos.y;
+        if snake_y < 0 || snake_y >= self.board_height as i32 {
+            return true;
+        }
+        if snake_x < 0 || snake_x >= self.board_width as i32 {
+            return true;
+        }
+        for (i, pos) in self.snake_position.iter().enumerate() {
+            if i != self.snake_position.len()-1 && pos.x == snake_x && pos.y == snake_y {
+                return true;
+            }
+        }
+        false
+    }
+
 }
 
 #[cfg(test)]
@@ -156,8 +176,26 @@ pub mod tests {
         assert_eq!(game.snake_direction, Direction::UP);
 
     }
-}
 
+    #[test]
+    pub fn border_test() {
+        let width = 7;
+        let height = 7;
+        let start_x = width as i32 / 2;
+        let start_y = height as i32 / 2;
+        let initial_position = Position { x: start_x, y: start_y };
+        let mut game = Game::new(width, height);
+        println!("{:?}", game);
+
+        game.tick();
+        game.tick();
+        game.tick();
+        game.tick();
+        game.tick();
+        println!("{:?}", game);
+        assert_eq!(game.is_game_over(), true);
+    }
+}
 
 fn main() {
     let SQUARE_SIZE = 16;
@@ -181,7 +219,6 @@ fn main() {
         .present_vsync()
         .build()
         .map_err(|e| e.to_string()).unwrap();
-
 
     canvas.set_draw_color(Color::RGB(0, 0, 0));
     canvas.clear();
@@ -218,6 +255,9 @@ fn main() {
             canvas.clear();
             game.draw_game(&mut canvas);
             canvas.present();
+        }
+        if game.is_game_over() {
+            break 'running;
         }
     }
 }
