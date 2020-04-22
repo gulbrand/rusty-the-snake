@@ -4,6 +4,7 @@ use std::time::{SystemTime, Duration};
 use sdl2::render::WindowCanvas;
 use sdl2::rect::Rect;
 use sdl2::keyboard::Keycode;
+use rand::Rng;
 
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -28,6 +29,7 @@ struct Game {
     board_height: u32,
     turn_command: Option<Direction>,
     fruit_position: Vec<Position>,
+    fruit_spawn_probability: i32,
 }
 
 impl Game {
@@ -47,6 +49,7 @@ impl Game {
             board_height: height,
             turn_command: None,
             fruit_position: Vec::new(),
+            fruit_spawn_probability: 15,
         }
     }
 
@@ -94,7 +97,7 @@ impl Game {
         self.snake_position.push(new_head_position);
     }
 
-    pub fn tick(self: &mut Self) {
+    fn _move_snake(self: &mut Self) {
         if self.snake_position.len() < 1 {
             return;
         }
@@ -116,13 +119,39 @@ impl Game {
         };
     }
 
+    pub fn _spawn_fruit_definitely(self: &mut Self) {
+        let mut rng = rand::thread_rng();
+        let rng_x = rng.gen_range(0, self.board_width);
+        let rng_y = rng.gen_range(0, self.board_height);
+        self.fruit_position.push(Position { x: rng_x as i32, y: rng_y as i32 });
+    }
+
+    pub fn _spawn_fruit_maybe(self: &mut Self) {
+        let mut rng = rand::thread_rng();
+        let rng_num: i32 = rng.gen_range(0, 100);
+        if rng_num <= self.fruit_spawn_probability {
+            self._spawn_fruit_definitely();
+        }
+    }
+
+    pub fn tick(self: &mut Self) {
+        self._move_snake();
+        self._spawn_fruit_maybe();
+    }
+
     pub fn draw_game(self: &Self, canvas: &mut WindowCanvas) {
         canvas.set_draw_color(Color::RGB(255, 255, 255));
         for pos in self.snake_position.iter() {
             if let Err(result) = canvas.fill_rect(Rect::new(pos.x*16, pos.y*16, 16, 16)) {
                 println!("error - {}", result);
             }
+        }
 
+        canvas.set_draw_color(Color::RGB(255, 0, 0));
+        for pos in self.fruit_position.iter() {
+            if let Err(result) = canvas.fill_rect(Rect::new(pos.x*16, pos.y*16, 16, 16)) {
+                println!("error - {}", result);
+            }
         }
     }
 
@@ -143,7 +172,6 @@ impl Game {
         }
         false
     }
-
 }
 
 #[cfg(test)]
@@ -155,9 +183,9 @@ pub mod tests {
         let height: u32 = 32;
         let x = width as i32 / 2;
         let y = height as i32 / 2;
-        let initial_position = Position { x: x + 2, y };
+        let initial_position = Position { x: x + 4, y };
         let mut game = Game::new(width, height);
-        assert_eq!(game.snake_position.len(), 3);
+        assert_eq!(game.snake_position.len(), 5);
         assert_eq!(game.snake_head(), Some(initial_position));
         game.turn(Direction::RIGHT);
         game.tick();
