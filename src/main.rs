@@ -4,7 +4,7 @@ use std::time::{SystemTime, Duration};
 use sdl2::render::WindowCanvas;
 use sdl2::rect::Rect;
 use sdl2::keyboard::Keycode;
-use std::borrow::Borrow;
+
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 struct Position {
@@ -27,6 +27,7 @@ struct Game {
     board_width: u32,
     board_height: u32,
     turn_command: Option<Direction>,
+    fruit_position: Vec<Position>,
 }
 
 impl Game {
@@ -44,7 +45,8 @@ impl Game {
             snake_direction: Direction::RIGHT,
             board_width: width,
             board_height: height,
-            turn_command: None
+            turn_command: None,
+            fruit_position: Vec::new(),
         }
     }
 
@@ -111,14 +113,16 @@ impl Game {
             Direction::DOWN => {
                 self._move_direction(0, 1);
             },
-            _ => {},
         };
     }
 
     pub fn draw_game(self: &Self, canvas: &mut WindowCanvas) {
         canvas.set_draw_color(Color::RGB(255, 255, 255));
         for pos in self.snake_position.iter() {
-            canvas.fill_rect(Rect::new(pos.x*16, pos.y*16, 16, 16));
+            if let Err(result) = canvas.fill_rect(Rect::new(pos.x*16, pos.y*16, 16, 16)) {
+                println!("error - {}", result);
+            }
+
         }
     }
 
@@ -181,9 +185,6 @@ pub mod tests {
     pub fn border_test() {
         let width = 7;
         let height = 7;
-        let start_x = width as i32 / 2;
-        let start_y = height as i32 / 2;
-        let initial_position = Position { x: start_x, y: start_y };
         let mut game = Game::new(width, height);
         println!("{:?}", game);
 
@@ -198,18 +199,18 @@ pub mod tests {
 }
 
 fn main() {
-    let SQUARE_SIZE = 16;
-    let PLAY_AREA_WIDTH = 32;
-    let PLAY_AREA_HEIGHT = 32;
+    let square_size = 16;
+    let play_area_width = 32;
+    let play_area_height = 32;
 
-    let mut game = Game::new(PLAY_AREA_WIDTH, PLAY_AREA_HEIGHT);
+    let mut game = Game::new(play_area_width, play_area_height);
 
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
     let window = video_subsystem
         .window("rusty-the-snake",
-                SQUARE_SIZE * PLAY_AREA_WIDTH,
-                      SQUARE_SIZE * PLAY_AREA_HEIGHT)
+                square_size * play_area_width,
+                square_size * play_area_height)
         .position_centered()
         .build()
         .map_err(|e| e.to_string()).unwrap();
