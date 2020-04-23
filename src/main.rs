@@ -1,11 +1,18 @@
 use sdl2::event::Event;
 use sdl2::pixels::Color;
 use std::time::{SystemTime, Duration};
-use sdl2::render::WindowCanvas;
+use sdl2::render::{WindowCanvas, TextureQuery};
 use sdl2::rect::Rect;
 use sdl2::keyboard::Keycode;
 use rand::Rng;
 use std::collections::VecDeque;
+use std::path::Path;
+
+macro_rules! rect(
+    ($x:expr, $y:expr, $w:expr, $h:expr) => (
+        Rect::new($x as i32, $y as i32, $w as u32, $h as u32)
+    )
+);
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 struct Position {
@@ -31,6 +38,7 @@ struct Game {
     turn_command: Option<Direction>,
     fruit_position: Vec<Position>,
     fruit_spawn_probability: i32,
+    player_score: u32
 }
 
 impl Game {
@@ -52,6 +60,7 @@ impl Game {
             turn_command: None,
             fruit_position: Vec::new(),
             fruit_spawn_probability: 15,
+            player_score: 0,
         }
     }
 
@@ -159,6 +168,7 @@ impl Game {
             if snake_head.x == pos.x && snake_head.y == pos.y {
                 self.fruit_position.remove(i);
                 self.snake_position.push_front(self.snake_tail_last_pos);
+                self.player_score += 1;
                 break;
             }
         }
@@ -208,6 +218,9 @@ impl Game {
         let base_rate = 300;
         let length_modified_rate = base_rate - (self.snake_position.len() * 12);
         return Duration::from_millis(length_modified_rate as u64);
+    }
+    pub fn player_score(self: &Self) -> u32 {
+        self.player_score
     }
 }
 
@@ -264,6 +277,8 @@ pub mod tests {
 }
 
 fn main() {
+    let font_path: &Path = Path::new("./DroidSansMono.ttf");
+    println!("linked sdl2_ttf: {}", sdl2::ttf::get_linked_version());
     let square_size = 16;
     let play_area_width = 32;
     let play_area_height = 32;
@@ -272,6 +287,12 @@ fn main() {
 
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
+    let ttf_context = sdl2::ttf::init().map_err(|e| e.to_string()).unwrap();
+    let mut font = ttf_context.load_font(font_path, 15).unwrap();
+    font.set_style(sdl2::ttf::FontStyle::BOLD);
+    let score_surface =
+        font.render(format!("Score: {}", 0).as_str())
+            .blended(Color::RGBA(255, 0, 0, 255)).map_err(|e| e.to_string()).unwrap();
     let window = video_subsystem
         .window("rusty-the-snake",
                 square_size * play_area_width,
@@ -286,9 +307,17 @@ fn main() {
         .build()
         .map_err(|e| e.to_string()).unwrap();
 
+    let texture_creator = canvas.texture_creator();
+    let score_texture = texture_creator.create_texture_from_surface(&score_surface)
+        .map_err(|e| e.to_string()).unwrap();
+    let TextureQuery { width, height, .. } = score_texture.query();
+    let padding = 64;
+    let target = rect!(0, 0, width, height);
+
     canvas.set_draw_color(Color::RGB(0, 0, 0));
     canvas.clear();
     game.draw_game(&mut canvas);
+    canvas.copy(&score_texture, None, Some(target)).unwrap();
     canvas.present();
 
     let mut event_pump = sdl_context.event_pump().unwrap();
@@ -320,10 +349,21 @@ fn main() {
             canvas.set_draw_color(Color::RGB(0, 0, 0));
             canvas.clear();
             game.draw_game(&mut canvas);
+            let score_surface =
+                font.render(format!("Score: {}", game.player_score()).as_str())
+                    .blended(Color::RGBA(255, 0, 0, 255)).map_err(|e| e.to_string()).unwrap();
+            let texture_creator = canvas.texture_creator();
+            let score_texture = texture_creator.create_texture_from_surface(&score_surface)
+                .map_err(|e| e.to_string()).unwrap();
+            let TextureQuery { width, height, .. } = score_texture.query();
+            let padding = 64;
+            let target = rect!(0, 0, width, height);
+            canvas.copy(&score_texture, None, Some(target)).unwrap();
             canvas.present();
         }
         if game.is_game_over() {
             break 'running;
         }
     }
+    println!("final score: {}", game.player_score());
 }
