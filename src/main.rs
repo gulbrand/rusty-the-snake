@@ -7,7 +7,6 @@ use sdl2::keyboard::Keycode;
 use rand::Rng;
 use std::collections::VecDeque;
 
-
 #[derive(Debug, PartialEq, Copy, Clone)]
 struct Position {
     x: i32,
