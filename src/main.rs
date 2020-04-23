@@ -277,6 +277,7 @@ pub mod tests {
 }
 
 fn main() {
+    // https://www.fontsquirrel.com/license/droid-sans-mono
     let font_path: &Path = Path::new("./DroidSansMono.ttf");
     println!("linked sdl2_ttf: {}", sdl2::ttf::get_linked_version());
     let square_size = 16;
