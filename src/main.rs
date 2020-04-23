@@ -5,6 +5,7 @@ use sdl2::render::WindowCanvas;
 use sdl2::rect::Rect;
 use sdl2::keyboard::Keycode;
 use rand::Rng;
+use std::collections::VecDeque;
 
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -23,8 +24,9 @@ enum Direction {
 
 #[derive(Debug)]
 struct Game {
-    snake_position: Vec<Position>,
+    snake_position: VecDeque<Position>,
     snake_direction: Direction,
+    snake_tail_last_pos: Position,
     board_width: u32,
     board_height: u32,
     turn_command: Option<Direction>,
@@ -36,15 +38,16 @@ impl Game {
     pub fn new(width: u32, height: u32) -> Game {
         let x = width as i32 / 2;
         let y = height as i32 / 2;
-        let mut snake_positions: Vec<Position> = Vec::new();
-        snake_positions.push(Position { x, y });
-        snake_positions.push(Position { x: x + 1, y: y } );
-        snake_positions.push(Position { x: x + 2, y: y } );
-        snake_positions.push(Position { x: x + 3, y: y } );
-        snake_positions.push(Position { x: x + 4, y: y } );
+        let mut snake_positions: VecDeque<Position> = VecDeque::new();
+        snake_positions.push_back(Position { x, y });
+        snake_positions.push_back(Position { x: x + 1, y: y } );
+        snake_positions.push_back(Position { x: x + 2, y: y } );
+        snake_positions.push_back(Position { x: x + 3, y: y } );
+        snake_positions.push_back(Position { x: x + 4, y: y } );
         Game {
             snake_position: snake_positions,
             snake_direction: Direction::RIGHT,
+            snake_tail_last_pos: Position { x, y },
             board_width: width,
             board_height: height,
             turn_command: None,
@@ -80,7 +83,7 @@ impl Game {
         if self.snake_position.len() < 1 {
             return None;
         }
-        let last = self.snake_position.last().unwrap();
+        let last = self.snake_position.back().unwrap();
         Some(Position {
             x: last.x,
             y: last.y
@@ -93,8 +96,8 @@ impl Game {
             x: head.x + dx,
             y: head.y + dy,
         };
-        self.snake_position.remove(0);
-        self.snake_position.push(new_head_position);
+        self.snake_tail_last_pos = self.snake_position.remove(0).unwrap();
+        self.snake_position.push_back(new_head_position);
     }
 
     fn _move_snake(self: &mut Self) {
@@ -123,6 +126,7 @@ impl Game {
         let mut rng = rand::thread_rng();
         let rng_x = rng.gen_range(0, self.board_width);
         let rng_y = rng.gen_range(0, self.board_height);
+        // TODO there's a bug here, fruit shouldn't spawn under the snake.
         self.fruit_position.push(Position { x: rng_x as i32, y: rng_y as i32 });
     }
 
@@ -134,8 +138,20 @@ impl Game {
         }
     }
 
+    pub fn _eat_fruit_maybe(self: &mut Self) {
+        let snake_head = self.snake_head().unwrap();
+        for (i, pos) in self.fruit_position.iter().enumerate() {
+            if snake_head.x == pos.x && snake_head.y == pos.y {
+                self.fruit_position.remove(i);
+                self.snake_position.push_front(self.snake_tail_last_pos);
+                break;
+            }
+        }
+    }
+
     pub fn tick(self: &mut Self) {
         self._move_snake();
+        self._eat_fruit_maybe();
         self._spawn_fruit_maybe();
     }
 
@@ -171,6 +187,12 @@ impl Game {
             }
         }
         false
+    }
+
+    pub fn get_snake_hz(self: &Self) -> Duration {
+        let base_rate = 300;
+        let length_modified_rate = base_rate - (self.snake_position.len() * 12);
+        return Duration::from_millis(length_modified_rate as u64);
     }
 }
 
@@ -277,7 +299,7 @@ fn main() {
                 _ => ()
             }
         }
-        if last_tick.elapsed().unwrap() > Duration::from_millis(600) {
+        if last_tick.elapsed().unwrap() > game.get_snake_hz() {
             last_tick = SystemTime::now();
             game.tick();
             canvas.set_draw_color(Color::RGB(0, 0, 0));
