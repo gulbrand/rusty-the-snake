@@ -40,10 +40,10 @@ impl Game {
         let y = height as i32 / 2;
         let mut snake_positions: VecDeque<Position> = VecDeque::new();
         snake_positions.push_back(Position { x, y });
-        snake_positions.push_back(Position { x: x + 1, y: y } );
-        snake_positions.push_back(Position { x: x + 2, y: y } );
-        snake_positions.push_back(Position { x: x + 3, y: y } );
-        snake_positions.push_back(Position { x: x + 4, y: y } );
+        snake_positions.push_back(Position { x: x + 1, y } );
+        snake_positions.push_back(Position { x: x + 2, y } );
+        snake_positions.push_back(Position { x: x + 3, y } );
+        snake_positions.push_back(Position { x: x + 4, y } );
         Game {
             snake_position: snake_positions,
             snake_direction: Direction::RIGHT,
@@ -122,19 +122,35 @@ impl Game {
         };
     }
 
+    fn _is_snake_on_position(self: &Self, pos: &Position) -> bool {
+        for snake_pos in self.snake_position.iter() {
+            if pos.x == snake_pos.x && pos.y == snake_pos.y {
+                return true;
+            }
+        }
+        return false;
+    }
+
     pub fn _spawn_fruit_definitely(self: &mut Self) {
-        let mut rng = rand::thread_rng();
-        let rng_x = rng.gen_range(0, self.board_width);
-        let rng_y = rng.gen_range(0, self.board_height);
-        // TODO there's a bug here, fruit shouldn't spawn under the snake.
-        self.fruit_position.push(Position { x: rng_x as i32, y: rng_y as i32 });
+        loop {
+            let mut rng = rand::thread_rng();
+            let rng_x = rng.gen_range(0, self.board_width);
+            let rng_y = rng.gen_range(0, self.board_height);
+            let fruit_position_candidate = Position { x: rng_x as i32, y: rng_y as i32 };
+            if !self._is_snake_on_position(&fruit_position_candidate) {
+                self.fruit_position.push(Position { x: rng_x as i32, y: rng_y as i32 });
+                break;
+            }
+        }
     }
 
     pub fn _spawn_fruit_maybe(self: &mut Self) {
-        let mut rng = rand::thread_rng();
-        let rng_num: i32 = rng.gen_range(0, 100);
-        if rng_num <= self.fruit_spawn_probability {
-            self._spawn_fruit_definitely();
+        if self.fruit_position.len() < 10 {
+            let mut rng = rand::thread_rng();
+            let rng_num: i32 = rng.gen_range(0, 100);
+            if rng_num <= self.fruit_spawn_probability {
+                self._spawn_fruit_definitely();
+            }
         }
     }
 
